@@ -6,19 +6,24 @@ runs:
     - name: Checkout
       uses: actions/checkout@v3
     - name: Prepare .env
-      shell: |
+      run: |
         cp .env.testing .env
+      shell: bash
     - name: Docker-Compose Up
-      shell: |
+      run: |
         docker-compose up -d
+      shell: bash
     - name: Prepare Containers
-      shell: |
+      run: |
         docker-compose exec -T nginx composer install
         docker-compose exec -T nginx php artisan jwt:secret --env=testing
         docker-compose exec -T nginx php artisan key:generate --env=testing
+      shell: bash
     - name: Run Tests
-      shell: |
+      run: |
         docker-compose exec -T nginx php vendor/bin/phpunit --stop-on-failure ./tests/
+      shell: bash
     - name: Logs
-      shell: |
+      run: |
         docker-compose exec -T nginx cat storage/logs/*.log || true
+      shell: bash
