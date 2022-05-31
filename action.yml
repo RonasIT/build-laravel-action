@@ -1,64 +1,40 @@
-name: 'Build Laravel App'
-description: 'Ronas IT -> Build Laravel App'
+name: "Ronas IT: Run Laravel Test"
+description: "This action runs laravel tests using docker-compose"
+inputs:
+  docker-compose-file-path:
+    description: "Where docker-compose.yaml is located"
+    required: true
+    default: ${{ github.action_path }}/docker-compose.testing.yaml
 runs:
   using: "composite"
   steps:
-    - name: Checkout
+    - id: checkout
+      name: Checkout repository
       uses: actions/checkout@v3
-    - name: Prepare .env
+    - id: copy-env-testing-to-env
+      name: Copy .env.testing to .env
       run: |
         cp .env.testing .env
       shell: bash
-    - name: Docker-Compose Up
+    - id: run-docker-compose-up
+      name: Run docker-compose up
       run: |
-        docker-compose up -d
+        docker-compose up -d -f ${{ inputs.docker-compose-file-path }}
       shell: bash
-    - name: Prepare Containers
+    - id: prepare-containers
+      name: Prepare containers for running tests
       run: |
-        docker-compose exec -T nginx composer install
-        docker-compose exec -T nginx php artisan jwt:secret --env=testing
-        docker-compose exec -T nginx php artisan key:generate --env=testing
+        docker-compose exec -T nginx composer install -f ${{ inputs.docker-compose-file-path }}
+        docker-compose exec -T nginx php artisan jwt:secret --env=testing -f ${{ inputs.docker-compose-file-path }}
+        docker-compose exec -T nginx php artisan key:generate --env=testing -f ${{ inputs.docker-compose-file-path }}
       shell: bash
-    - name: Run Tests
+    - id: run-tests
+      name: Run tests
       run: |
-        docker-compose exec -T nginx php vendor/bin/phpunit --stop-on-failure ./tests/
+        docker-compose exec -T nginx php vendor/bin/phpunit --stop-on-failure ./tests/ -f ${{ inputs.docker-compose-file-path }}
       shell: bash
-    - name: Logs
+    - name: Show Logs
+      if: ${{ failure() }}
       run: |
-        docker-compose exec -T nginx cat storage/logs/*.log || true
+        docker-compose exec -T nginx cat storage/logs/*.log -f ${{ inputs.docker-compose-file-path }} || true
       shell: bash
-
-
-    - name: GitHub Environment Variables Action
-      if: ${{ github.ref == 'refs/heads/main' }}
-      uses: FranzDiebold/github-env-vars-action@v2.3.1
-    - name: Secrets to env
-      if: ${{ github.ref == 'refs/heads/main' }}
-      uses: shine1594/secrets-to-env-action@v1.5.2
-      with:
-        secrets: ${{ toJSON(secrets) }}
-        secrets_env: development
-        file_name_dev: .env.dev.secrets
-    - name: Merge secrets
-      if: ${{ github.ref == 'refs/heads/main' }}
-      run: |
-        sort -u -t '=' -k 1,1 .env.dev.secrets .env.dev > .env
-        rm .env.dev.secrets
-        rm .env.dev
-    - id: auth
-      if: ${{ github.ref == 'refs/heads/main' }}
-      name: 'Authenticate to Google Cloud'
-      uses: 'google-github-actions/auth@v0.7.0'
-      with:
-        token_format: 'access_token'
-        credentials_json: '${{ secrets.GKE_SA_KEY }}'
-    - name: Build and Publish docker image
-      if: ${{ github.ref == 'refs/heads/main' }}
-      uses: aevea/action-kaniko@master
-      with:
-        image: '${{ steps.auth.outputs.project_id }}/${{ env.CI_REPOSITORY_NAME_SLUG }}'
-        tag: '${{ github.run_number }}'
-        tag_with_latest: true
-        username: 'oauth2accesstoken'
-        password: '${{ steps.auth.outputs.access_token }}'
-        registry: 'gcr.io'
