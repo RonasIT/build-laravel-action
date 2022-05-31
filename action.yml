@@ -1,0 +1,24 @@
+name: 'Build Laravel App'
+description: 'Ronas IT -> Build Laravel App'
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+    - name: Prepare .env
+      shell: |
+        cp .env.testing .env
+    - name: Docker-Compose Up
+      shell: |
+        docker-compose up -d
+    - name: Prepare Containers
+      shell: |
+        docker-compose exec -T nginx composer install
+        docker-compose exec -T nginx php artisan jwt:secret --env=testing
+        docker-compose exec -T nginx php artisan key:generate --env=testing
+    - name: Run Tests
+      shell: |
+        docker-compose exec -T nginx php vendor/bin/phpunit --stop-on-failure ./tests/
+    - name: Logs
+      shell: |
+        docker-compose exec -T nginx cat storage/logs/*.log || true
