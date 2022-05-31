@@ -19,22 +19,22 @@ runs:
     - id: run-docker-compose-up
       name: Run docker-compose up
       run: |
-        docker-compose up -f ${{ inputs.docker-compose-file-path }} -d
+        docker-compose -f ${{ inputs.docker-compose-file-path }} up -d
       shell: bash
     - id: prepare-containers
       name: Prepare containers for running tests
       run: |
-        docker-compose exec -T nginx composer install
-        docker-compose exec -T nginx php artisan jwt:secret --env=testing
-        docker-compose exec -T nginx php artisan key:generate --env=testing
+        docker-compose -f ${{ inputs.docker-compose-file-path }} exec -T nginx composer install
+        docker-compose -f ${{ inputs.docker-compose-file-path }} exec -T nginx php artisan jwt:secret --env=testing
+        docker-compose -f ${{ inputs.docker-compose-file-path }} exec -T nginx php artisan key:generate --env=testing
       shell: bash
     - id: run-tests
       name: Run tests
       run: |
-        docker-compose exec -T nginx php vendor/bin/phpunit --stop-on-failure ./tests/
+        docker-compose -f ${{ inputs.docker-compose-file-path }} exec -T nginx php vendor/bin/phpunit --stop-on-failure ./tests/
       shell: bash
     - name: Show Logs
       if: ${{ failure() }}
       run: |
-        docker-compose exec -T nginx cat storage/logs/*.log || true
+        docker-compose -f ${{ inputs.docker-compose-file-path }} exec -T nginx cat storage/logs/*.log || true
       shell: bash
