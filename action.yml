@@ -27,3 +27,38 @@ runs:
       run: |
         docker-compose exec -T nginx cat storage/logs/*.log || true
       shell: bash
+
+
+    - name: GitHub Environment Variables Action
+      if: ${{ github.ref == 'refs/heads/main' }}
+      uses: FranzDiebold/github-env-vars-action@v2.3.1
+    - name: Secrets to env
+      if: ${{ github.ref == 'refs/heads/main' }}
+      uses: shine1594/secrets-to-env-action@v1.5.2
+      with:
+        secrets: ${{ toJSON(secrets) }}
+        secrets_env: development
+        file_name_dev: .env.dev.secrets
+    - name: Merge secrets
+      if: ${{ github.ref == 'refs/heads/main' }}
+      run: |
+        sort -u -t '=' -k 1,1 .env.dev.secrets .env.dev > .env
+        rm .env.dev.secrets
+        rm .env.dev
+    - id: auth
+      if: ${{ github.ref == 'refs/heads/main' }}
+      name: 'Authenticate to Google Cloud'
+      uses: 'google-github-actions/auth@v0.7.0'
+      with:
+        token_format: 'access_token'
+        credentials_json: '${{ secrets.GKE_SA_KEY }}'
+    - name: Build and Publish docker image
+      if: ${{ github.ref == 'refs/heads/main' }}
+      uses: aevea/action-kaniko@master
+      with:
+        image: '${{ steps.auth.outputs.project_id }}/${{ env.CI_REPOSITORY_NAME_SLUG }}'
+        tag: '${{ github.run_number }}'
+        tag_with_latest: true
+        username: 'oauth2accesstoken'
+        password: '${{ steps.auth.outputs.access_token }}'
+        registry: 'gcr.io'
