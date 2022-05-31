@@ -4,7 +4,7 @@ inputs:
   docker-compose-file-path:
     description: "Where docker-compose.yaml is located"
     required: true
-    default: ${{ github.action_path }}/docker-compose.testing.yaml
+    default: .${{ github.action_path }}/docker-compose.testing.yaml
 runs:
   using: "composite"
   steps:
